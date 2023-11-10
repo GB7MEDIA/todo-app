@@ -1,180 +1,194 @@
 import React, { useState, useEffect } from 'react';
 
 function App() {
-  const [todos, setTodos] = useState([]);
-  const [inputValue, setInputValue] = useState('');
-  const [priority, setPriority] = useState('low');
-  const [dueDate, setDueDate] = useState('');
-  const [editIndex, setEditIndex] = useState(null);
-  const [allDone, setAllDone] = useState(false);
+  const [tasks, setTasks] = useState([]);
+  const [currentInput, setCurrentInput] = useState('');
+  const [taskPriority, setTaskPriority] = useState('low');
+  const [taskDueDate, setTaskDueDate] = useState('');
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [allTasksCompleted, setAllTasksCompleted] = useState(false);
 
-  // Getting todos from local storage
+
+  // Getting tasks from local storage
   useEffect(() => {
-    const storedTodos = JSON.parse(localStorage.getItem('todos')) || [];
-    setTodos(storedTodos);
+    const storedTasks = JSON.parse(localStorage.getItem('tasks')) || [];
+    setTasks(storedTasks);
   }, []);
 
-  // Saving todos to local storage
+  // Saving tasks to local storage
   useEffect(() => {
-    localStorage.setItem('todos', JSON.stringify(todos));
-  }, [todos]);
+    localStorage.setItem('tasks', JSON.stringify(tasks));
+  }, [tasks]);
 
-  const formatDate = (dateString) => {
-    const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
-    const formattedDate = new Date(dateString).toLocaleDateString('en-US', options).replace(/\//g, '.');
-    return formattedDate;
+  const formatDateTime = (dateString, options = {}) => {
+    try {
+      const formattedDateTime = new Date(dateString)
+        .toLocaleString('en-US', { ...options, hour12: false });
+      return formattedDateTime;
+    } catch (error) {
+      console.error('Error formatting date/time:', error);
+      return null; // or throw an exception, depending on your error handling strategy
+    }
   };
+  
 
-  const formatTime = (dateString) => {
-    const options = { hour: 'numeric', minute: 'numeric', hour12: false };
-    const formattedTime = new Date(dateString).toLocaleTimeString('en-US', options);
-    return formattedTime;
-  };
-
-  const addTodo = () => {
-    if (editIndex !== null) {
-      const newTodos = [...todos];
-      newTodos[editIndex] = { text: inputValue, priority: priority, dueDate: dueDate, done: false };
-      setTodos(newTodos);
-      setEditIndex(null);
+  const addTasks = (text, priority, dueDate) => {
+    const taskItem = {
+      text: currentInput,
+      priority: taskPriority,
+      dueDate: taskDueDate,
+      done: false,
+    };
+  
+    if (editingIndex !== null) {
+      const newTasks = [...tasks];
+      newTasks[editingIndex] = taskItem;
+      setTasks(newTasks);
+      setEditingIndex(null);
     } else {
-      if (inputValue.trim() !== '') {
-        setTodos([...todos, { text: inputValue, priority: priority, dueDate: dueDate, done: false }]);
+      if (taskItem.text.trim()) {
+        setTasks([...tasks, taskItem]);
+      }
+    }
+  
+    // Reset input values
+    setCurrentInput('');
+    setTaskPriority('low');
+    setTaskDueDate('');
+  };
+  
+
+  const setEditingTaskState = (index) => {
+    setEditingIndex(index);
+    setCurrentInput(tasks[index].text);
+    setTaskPriority(tasks[index].priority);
+    setTaskDueDate(tasks[index].dueDate);
+  };
+
+  const cancelEditingState = () => {
+    setEditingIndex(null);
+    setCurrentInput('');
+    setTaskPriority('low');
+    setTaskDueDate('');
+  };
+
+  const deleteTask = (index) => {
+    const newTasks = [...tasks];
+    newTasks.splice(index, 1);
+    setTasks(newTasks);
+    setEditingIndex(null);
+  };
+
+  const deleteAllTasks = () => {
+    const deleteAllTasksconfirm = window.confirm("Are you sure you want to delete all tasks?");
+    if (deleteAllTasksconfirm) {
+      setTasks([]);
+      setEditingIndex(null);
+    }
+  };
+
+  const toggleTaskCompletion = (index) => {
+    const newTasks = [...tasks];
+    newTasks[index].done = !newTasks[index].done;
+    setTasks(newTasks);
+  };
+
+  const markAllTasksCompleted = () => {
+    const updatedTasks = tasks.map(task => ({ ...task, done: true }));
+    setTasks(updatedTasks);
+  };
+
+  useEffect(() => {
+    setAllTasksCompleted(tasks.every(task => task.done));
+  }, [tasks]);
+
+  // Sort todos by priority, due date, and then by text
+  const sortedTasks = tasks.slice().sort((a, b) => {
+    const taskPriorityOrder = { high: 3, medium: 2, low: 1 }; // Define priority order
+
+    if (taskPriorityOrder[a.priority] !== taskPriorityOrder[b.priority]) {
+      return taskPriorityOrder[b.priority] - taskPriorityOrder[a.priority];
+    }
+
+    if (a.dueDate && b.dueDate) {
+      const taskDueDateComparison = new Date(a.dueDate) - new Date(b.dueDate);
+      if (taskDueDateComparison !== 0) {
+        return taskDueDateComparison;
       }
     }
 
-    setInputValue('');
-    setPriority('low');
-    setDueDate('');
-  };
-
-  const setEditState = (index) => {
-    setEditIndex(index);
-    setInputValue(todos[index].text);
-    setPriority(todos[index].priority);
-    setDueDate(todos[index].dueDate);
-  };
-
-  const cancelEditState = () => {
-    setEditIndex(null);
-    setInputValue('');
-    setPriority('low');
-    setDueDate('');
-  };
-
-  const deleteTodo = (index) => {
-    const newTodos = [...todos];
-    newTodos.splice(index, 1);
-    setTodos(newTodos);
-    setEditIndex(null);
-  };
-
-  const deleteAll = () => {
-    // Ask for confirmation before deleting all todos
-    const confirmDelete = window.confirm("Are you sure you want to delete all todos?");
-    if (confirmDelete) {
-      setTodos([]);
-      setEditIndex(null);
-    }
-  };
-
-  const toggleDone = (index) => {
-    const newTodos = [...todos];
-    newTodos[index].done = !newTodos[index].done;
-    setTodos(newTodos);
-  };
-
-  const markAllDone = () => {
-    const updatedTodos = todos.map(todo => ({ ...todo, done: true }));
-    setTodos(updatedTodos);
-  };
-
-// Sort todos by priority, due date, and then by text
-const sortedTodos = todos.slice().sort((a, b) => {
-  const priorityOrder = { high: 3, medium: 2, low: 1 }; // Define priority order
-
-  // Sort by priority
-  if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
-    return priorityOrder[b.priority] - priorityOrder[a.priority];
-  }
-
-  // If priorities are the same, sort by due date
-  if (a.dueDate && b.dueDate) {
-    const dueDateComparison = new Date(a.dueDate) - new Date(b.dueDate);
-    if (dueDateComparison !== 0) {
-      return dueDateComparison;
-    }
-  }
-
-  // If due dates are the same or not present, sort by text
-  return a.text.localeCompare(b.text);
-});
-
-
+    return a.text.localeCompare(b.text);
+  });
 
   return (
     <div>
-      <h1>Todo App</h1>
+      <h1>Task App</h1>
       <div>
+        <label htmlFor="task-text">Task</label>
         <input
           type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          placeholder="Todo text"
+          id="task-text"
+          value={currentInput}
+          onChange={(e) => setCurrentInput(e.target.value)}
+          placeholder="Enter your todo text"
         />
+        <label htmlFor="priority-of-todo">Priority</label>
         <select
-          value={priority}
-          onChange={(e) => setPriority(e.target.value)}
+          value={taskPriority}
+          onChange={(e) => setTaskPriority(e.target.value)}
+          id="priority-of-todo"
         >
           <option value="low">Low</option>
           <option value="medium">Medium</option>
           <option value="high">High</option>
         </select>
+        <label htmlFor="dueDate">Due Date</label>
         <input
           type="datetime-local"
-          value={dueDate}
-          onChange={(e) => setDueDate(e.target.value)}
+          id="dueDate"
+          value={taskDueDate}
+          onChange={(e) => setTaskDueDate(e.target.value)}
         />
-        <button onClick={addTodo}>
-          {editIndex !== null ? 'Save' : 'Add'}
+        <button onClick={addTasks}>
+          {editingIndex !== null ? 'Save' : 'Add'}
         </button>
-        {editIndex !== null && <button onClick={cancelEditState}>Cancel</button>}
-        {todos.length > 0 && <button onClick={deleteAll}>Delete All</button>}
-        {todos.length > 0 && <button onClick={markAllDone}>Mark All Done</button>}
+        {editingIndex !== null && <button onClick={cancelEditingState}>Cancel</button>}
+        {tasks.length > 1 && <button onClick={deleteAllTasks}>Delete All</button>}
+        {tasks.length > 1 && !allTasksCompleted && <button onClick={markAllTasksCompleted}>Mark All Done</button>}
       </div>
       <ul>
-      {sortedTodos.map((todo, index) => (
-  <li key={index} className={todo.done ? 'done' : ''}>
-    <input
-      type="checkbox"
-      id={`checkbox-${index}`}
-      checked={todo.done}
-      onChange={() => toggleDone(index)}
-    />
-    <label htmlFor={`checkbox-${index}`}>
+        {sortedTasks.map((task, index) => {
+          const originalIndex = tasks.findIndex(t => t.text === task.text);
 
-      <strong>{todo.text}</strong> - Priority: {todo.priority}, Due: {formatDate(todo.dueDate)} - {formatTime(todo.dueDate)}
-      {editIndex !== index && !todo.done && (
-        <>
-          <button onClick={() => setEditState(index)}>Edit</button>
-          <button onClick={() => deleteTodo(index)}>Delete</button>
-        </>
-      )}
-    </label>
-  </li>
-))}
-
+          return (
+            <li key={index} className={task.done ? 'done' : ''}>
+              <input
+                type="checkbox"
+                checked={task.done}
+                onChange={() => toggleTaskCompletion(originalIndex)}
+              />
+              <label htmlFor={`checkbox-${originalIndex}`}>
+                <strong>{task.text}</strong> - Priority: {task.priority}, Due: {formatDateTime(`${task.dueDate}`, { hour: 'numeric', minute: 'numeric' })}
+                {editingIndex !== originalIndex && (
+                  <>
+                    {!task.done && (
+                      <button onClick={() => setEditingTaskState(originalIndex)}>
+                        Edit
+                      </button>
+                    )}
+                    <button onClick={() => deleteTask(originalIndex)}>
+                      Delete
+                    </button>
+                  </>
+                )}
+              </label>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
 }
 
 export default App;
-
-
-
-
-
-
-
 
