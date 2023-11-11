@@ -27,18 +27,32 @@ function App() {
       return formattedDateTime;
     } catch (error) {
       console.error('Error formatting date/time:', error);
-      return null; // or throw an exception, depending on your error handling strategy
+      return null;
     }
   };
-  
 
-  const addTasks = (text, priority, dueDate) => {
+  const addTask = () => {
     const taskItem = {
       text: currentInput,
       priority: taskPriority,
       dueDate: taskDueDate,
       done: false,
     };
+  
+    // Check if the text is the same as any other task (except itself) when editing
+    const isTextDuplicate = tasks.some((task, index) => index !== editingIndex && task.text === taskItem.text);
+  
+    if (isTextDuplicate) {
+      // Handle the case where the text is a duplicate
+      alert("Task with the same text already exists. Please choose a different text.");
+      return;
+    }
+  
+    // Check if the due date is not empty
+    if (!taskDueDate) {
+      alert("Please provide a due date for the task.");
+      return;
+    }
   
     if (editingIndex !== null) {
       const newTasks = [...tasks];
@@ -56,6 +70,8 @@ function App() {
     setTaskPriority('low');
     setTaskDueDate('');
   };
+  
+  
   
 
   const setEditingTaskState = (index) => {
@@ -102,23 +118,38 @@ function App() {
     setAllTasksCompleted(tasks.every(task => task.done));
   }, [tasks]);
 
-  // Sort todos by priority, due date, and then by text
-  const sortedTasks = tasks.slice().sort((a, b) => {
-    const taskPriorityOrder = { high: 3, medium: 2, low: 1 }; // Define priority order
+// Sort tasks by date without time and then by priority, due date, and text
+const sortedTasks = tasks.slice().sort((a, b) => {
+  const taskPriorityOrder = { high: 3, medium: 2, low: 1 };
 
-    if (taskPriorityOrder[a.priority] !== taskPriorityOrder[b.priority]) {
-      return taskPriorityOrder[b.priority] - taskPriorityOrder[a.priority];
+  // Extract date without time
+  const getDateWithoutTime = (dateString) => new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+
+  const aDateWithoutTime = getDateWithoutTime(a.dueDate);
+  const bDateWithoutTime = getDateWithoutTime(b.dueDate);
+
+  // First, sort by date without time
+  if (aDateWithoutTime !== bDateWithoutTime) {
+    return aDateWithoutTime.localeCompare(bDateWithoutTime);
+  }
+
+  // If the dates without time are the same, sort by priority
+  if (taskPriorityOrder[a.priority] !== taskPriorityOrder[b.priority]) {
+    return taskPriorityOrder[b.priority] - taskPriorityOrder[a.priority];
+  }
+
+  // If priority is the same, then sort by due date and text
+  if (a.dueDate && b.dueDate) {
+    const taskDueDateComparison = new Date(a.dueDate) - new Date(b.dueDate);
+    if (taskDueDateComparison !== 0) {
+      return taskDueDateComparison;
     }
+  }
 
-    if (a.dueDate && b.dueDate) {
-      const taskDueDateComparison = new Date(a.dueDate) - new Date(b.dueDate);
-      if (taskDueDateComparison !== 0) {
-        return taskDueDateComparison;
-      }
-    }
+  return a.text.localeCompare(b.text);
+});
 
-    return a.text.localeCompare(b.text);
-  });
+
 
   return (
     <div>
@@ -149,7 +180,7 @@ function App() {
           value={taskDueDate}
           onChange={(e) => setTaskDueDate(e.target.value)}
         />
-        <button onClick={addTasks}>
+        <button onClick={addTask}>
           {editingIndex !== null ? 'Save' : 'Add'}
         </button>
         {editingIndex !== null && <button onClick={cancelEditingState}>Cancel</button>}
