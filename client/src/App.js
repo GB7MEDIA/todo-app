@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 
+// Move getDateWithoutTime outside of the component
+const getDateWithoutTime = (dateString) => new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+
 function App() {
-  const [tasks, setTasks] = useState([]);
-  const [currentInput, setCurrentInput] = useState('');
-  const [taskPriority, setTaskPriority] = useState('low');
-  const [taskDueDate, setTaskDueDate] = useState('');
-  const [editingIndex, setEditingIndex] = useState(null);
-  const [allTasksCompleted, setAllTasksCompleted] = useState(false);
+    const [tasks, setTasks] = useState([]);
+    const [currentInput, setCurrentInput] = useState('');
+    const [taskPriority, setTaskPriority] = useState('low');
+    const [taskDueDate, setTaskDueDate] = useState('');
+    const [editingIndex, setEditingIndex] = useState(null);
+    const [allTasksCompleted, setAllTasksCompleted] = useState(false);
 
-
-  // Getting tasks from local storage
+    // Getting tasks from local storage
   useEffect(() => {
     const storedTasks = JSON.parse(localStorage.getItem('tasks')) || [];
     setTasks(storedTasks);
@@ -20,16 +22,27 @@ function App() {
     localStorage.setItem('tasks', JSON.stringify(tasks));
   }, [tasks]);
 
-  const formatDateTime = (dateString, options = {}) => {
+  const formatDateTime = (dateString) => {
     try {
-      const formattedDateTime = new Date(dateString)
-        .toLocaleString('en-US', { ...options, hour12: false });
-      return formattedDateTime;
+        const date = new Date(dateString);
+        const formattedDateTime = `${date.getFullYear()}:${(date.getMonth() + 1).toString().padStart(2, '0')}:${date.getDate().toString().padStart(2, '0')} - ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
+        return formattedDateTime;
     } catch (error) {
+        console.error('Error formatting date/time:', error);
+        return null;
+    }
+};
+const formatDateTime2 = (dateString) => {
+  try {
+      const date = new Date(dateString);
+      const formattedDateTime = `${date.getFullYear()}:${(date.getMonth() + 1).toString().padStart(2, '0')}:${date.getDate().toString().padStart(2, '0')}`;
+      return formattedDateTime;
+  } catch (error) {
       console.error('Error formatting date/time:', error);
       return null;
-    }
-  };
+  }
+};
+
 
   const addTask = () => {
     const taskItem = {
@@ -118,38 +131,32 @@ function App() {
     setAllTasksCompleted(tasks.every(task => task.done));
   }, [tasks]);
 
-// Sort tasks by date without time and then by priority, due date, and text
-const sortedTasks = tasks.slice().sort((a, b) => {
-  const taskPriorityOrder = { high: 3, medium: 2, low: 1 };
+  // Sort tasks by date without time and then by priority, and text
+  const sortedTasks = tasks.slice().sort((a, b) => {
+    const taskPriorityOrder = { high: 3, medium: 2, low: 1 };
 
-  // Extract date without time
-  const getDateWithoutTime = (dateString) => new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    // Extract date without time
+    const getDateWithoutTime = (dateString) => new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
 
-  const aDateWithoutTime = getDateWithoutTime(a.dueDate);
-  const bDateWithoutTime = getDateWithoutTime(b.dueDate);
+    const aDateWithoutTime = getDateWithoutTime(a.dueDate);
+    const bDateWithoutTime = getDateWithoutTime(b.dueDate);
 
-  // First, sort by date without time
-  if (aDateWithoutTime !== bDateWithoutTime) {
-    return aDateWithoutTime.localeCompare(bDateWithoutTime);
-  }
-
-  // If the dates without time are the same, sort by priority
-  if (taskPriorityOrder[a.priority] !== taskPriorityOrder[b.priority]) {
-    return taskPriorityOrder[b.priority] - taskPriorityOrder[a.priority];
-  }
-
-  // If priority is the same, then sort by due date and text
-  if (a.dueDate && b.dueDate) {
-    const taskDueDateComparison = new Date(a.dueDate) - new Date(b.dueDate);
-    if (taskDueDateComparison !== 0) {
-      return taskDueDateComparison;
+    // First, sort by date without time
+    if (aDateWithoutTime !== bDateWithoutTime) {
+      return aDateWithoutTime.localeCompare(bDateWithoutTime);
     }
-  }
 
-  return a.text.localeCompare(b.text);
-});
+    // If the dates without time are the same, sort by priority
+    if (taskPriorityOrder[a.priority] !== taskPriorityOrder[b.priority]) {
+      return taskPriorityOrder[b.priority] - taskPriorityOrder[a.priority];
+    }
 
+    // If priority is the same, then sort by text
+    return a.text.localeCompare(b.text);
+  });
 
+  // Extract unique due dates (without time) from tasks
+  const uniqueDueDates = [...new Set(sortedTasks.map(task => getDateWithoutTime(task.dueDate)))];
 
   return (
     <div>
@@ -188,34 +195,43 @@ const sortedTasks = tasks.slice().sort((a, b) => {
         {tasks.length > 1 && !allTasksCompleted && <button onClick={markAllTasksCompleted}>Mark All Done</button>}
       </div>
       <ul>
-        {sortedTasks.map((task, index) => {
-          const originalIndex = tasks.findIndex(t => t.text === task.text);
+        {uniqueDueDates.map((dueDate, dateIndex) => (
+          <li key={dateIndex}>
+            <h2>{formatDateTime2(dueDate, { year: 'numeric', month: 'long', day: 'numeric' })}</h2>
+            <ul>
+              {sortedTasks
+                .filter(task => getDateWithoutTime(task.dueDate) === dueDate)
+                .map((task, index) => {
+                  const originalIndex = tasks.findIndex(t => t.text === task.text);
 
-          return (
-            <li key={index} className={task.done ? 'done' : ''}>
-              <input
-                type="checkbox"
-                checked={task.done}
-                onChange={() => toggleTaskCompletion(originalIndex)}
-              />
-              <label htmlFor={`checkbox-${originalIndex}`}>
-                <strong>{task.text}</strong> - Priority: {task.priority}, Due: {formatDateTime(`${task.dueDate}`, { hour: 'numeric', minute: 'numeric' })}
-                {editingIndex !== originalIndex && (
-                  <>
-                    {!task.done && (
-                      <button onClick={() => setEditingTaskState(originalIndex)}>
-                        Edit
-                      </button>
-                    )}
-                    <button onClick={() => deleteTask(originalIndex)}>
-                      Delete
-                    </button>
-                  </>
-                )}
-              </label>
-            </li>
-          );
-        })}
+                  return (
+                    <li key={index} className={task.done ? 'done' : ''}>
+                      <input
+                        type="checkbox"
+                        checked={task.done}
+                        onChange={() => toggleTaskCompletion(originalIndex)}
+                      />
+                      <label htmlFor={`checkbox-${originalIndex}`}>
+                        <strong>{task.text}</strong> - Priority: {task.priority} - DueDate: {formatDateTime(task.dueDate)}
+                        {editingIndex !== originalIndex && (
+                          <>
+                            {!task.done && (
+                              <button onClick={() => setEditingTaskState(originalIndex)}>
+                                Edit
+                              </button>
+                            )}
+                            <button onClick={() => deleteTask(originalIndex)}>
+                              Delete
+                            </button>
+                          </>
+                        )}
+                      </label>
+                    </li>
+                  );
+                })}
+            </ul>
+          </li>
+        ))}
       </ul>
     </div>
   );
