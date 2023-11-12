@@ -1,48 +1,47 @@
 import React, { useState, useEffect } from 'react';
 
-// Move getDateWithoutTime outside of the component
 const getDateWithoutTime = (dateString) => new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
 
 function App() {
-    const [tasks, setTasks] = useState([]);
-    const [currentInput, setCurrentInput] = useState('');
-    const [taskPriority, setTaskPriority] = useState('low');
-    const [taskDueDate, setTaskDueDate] = useState('');
-    const [editingIndex, setEditingIndex] = useState(null);
-    const [allTasksCompleted, setAllTasksCompleted] = useState(false);
+  const [tasks, setTasks] = useState([]);
+  const [currentInput, setCurrentInput] = useState('');
+  const [taskPriority, setTaskPriority] = useState('low');
+  const [taskDueDate, setTaskDueDate] = useState('');
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [allTasksCompleted, setAllTasksCompleted] = useState(false);
+  const [sleepStartTime, setSleepStartTime] = useState('');
+  const [sleepEndTime, setSleepEndTime] = useState('');
 
-    // Getting tasks from local storage
   useEffect(() => {
     const storedTasks = JSON.parse(localStorage.getItem('tasks')) || [];
     setTasks(storedTasks);
   }, []);
 
-  // Saving tasks to local storage
   useEffect(() => {
     localStorage.setItem('tasks', JSON.stringify(tasks));
   }, [tasks]);
 
   const formatDateTime = (dateString) => {
     try {
-        const date = new Date(dateString);
-        const formattedDateTime = `${date.getFullYear()}:${(date.getMonth() + 1).toString().padStart(2, '0')}:${date.getDate().toString().padStart(2, '0')} - ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
-        return formattedDateTime;
+      const date = new Date(dateString);
+      const formattedDateTime = `${date.getFullYear()}:${(date.getMonth() + 1).toString().padStart(2, '0')}:${date.getDate().toString().padStart(2, '0')} - ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
+      return formattedDateTime;
     } catch (error) {
-        console.error('Error formatting date/time:', error);
-        return null;
+      console.error('Error formatting date/time:', error);
+      return null;
     }
-};
-const formatDateTime2 = (dateString) => {
-  try {
+  };
+
+  const formatDateTime2 = (dateString) => {
+    try {
       const date = new Date(dateString);
       const formattedDateTime = `${date.getFullYear()}:${(date.getMonth() + 1).toString().padStart(2, '0')}:${date.getDate().toString().padStart(2, '0')}`;
       return formattedDateTime;
-  } catch (error) {
+    } catch (error) {
       console.error('Error formatting date/time:', error);
       return null;
-  }
-};
-
+    }
+  };
 
   const addTask = () => {
     const taskItem = {
@@ -51,22 +50,19 @@ const formatDateTime2 = (dateString) => {
       dueDate: taskDueDate,
       done: false,
     };
-  
-    // Check if the text is the same as any other task (except itself) when editing
+
     const isTextDuplicate = tasks.some((task, index) => index !== editingIndex && task.text === taskItem.text);
-  
+
     if (isTextDuplicate) {
-      // Handle the case where the text is a duplicate
       alert("Task with the same text already exists. Please choose a different text.");
       return;
     }
-  
-    // Check if the due date is not empty
+
     if (!taskDueDate) {
       alert("Please provide a due date for the task.");
       return;
     }
-  
+
     if (editingIndex !== null) {
       const newTasks = [...tasks];
       newTasks[editingIndex] = taskItem;
@@ -77,15 +73,11 @@ const formatDateTime2 = (dateString) => {
         setTasks([...tasks, taskItem]);
       }
     }
-  
-    // Reset input values
+
     setCurrentInput('');
     setTaskPriority('low');
     setTaskDueDate('');
   };
-  
-  
-  
 
   const setEditingTaskState = (index) => {
     setEditingIndex(index);
@@ -131,32 +123,36 @@ const formatDateTime2 = (dateString) => {
     setAllTasksCompleted(tasks.every(task => task.done));
   }, [tasks]);
 
-  // Sort tasks by date without time and then by priority, and text
   const sortedTasks = tasks.slice().sort((a, b) => {
     const taskPriorityOrder = { high: 3, medium: 2, low: 1 };
 
-    // Extract date without time
     const getDateWithoutTime = (dateString) => new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
 
     const aDateWithoutTime = getDateWithoutTime(a.dueDate);
     const bDateWithoutTime = getDateWithoutTime(b.dueDate);
 
-    // First, sort by date without time
     if (aDateWithoutTime !== bDateWithoutTime) {
       return aDateWithoutTime.localeCompare(bDateWithoutTime);
     }
 
-    // If the dates without time are the same, sort by priority
     if (taskPriorityOrder[a.priority] !== taskPriorityOrder[b.priority]) {
       return taskPriorityOrder[b.priority] - taskPriorityOrder[a.priority];
     }
 
-    // If priority is the same, then sort by text
     return a.text.localeCompare(b.text);
   });
 
-  // Extract unique due dates (without time) from tasks
-  const uniqueDueDates = [...new Set(sortedTasks.map(task => getDateWithoutTime(task.dueDate)))];
+  const filteredTasks = sortedTasks.filter((task) => {
+    const taskDateTime = new Date(task.dueDate);
+    const sleepStartTimeDate = new Date(`2000-01-01 ${sleepStartTime}`);
+    const sleepEndTimeDate = new Date(`2000-01-01 ${sleepEndTime}`);
+
+    return (
+      taskDateTime < sleepStartTimeDate || taskDateTime > sleepEndTimeDate
+    );
+  });
+
+  const uniqueDueDates = [...new Set(filteredTasks.map(task => getDateWithoutTime(task.dueDate)))];
 
   return (
     <div>
@@ -187,6 +183,20 @@ const formatDateTime2 = (dateString) => {
           value={taskDueDate}
           onChange={(e) => setTaskDueDate(e.target.value)}
         />
+        <label htmlFor="sleepStartTime">Sleep Start Time</label>
+        <input
+          type="time"
+          id="sleepStartTime"
+          value={sleepStartTime}
+          onChange={(e) => setSleepStartTime(e.target.value)}
+        />
+        <label htmlFor="sleepEndTime">Sleep End Time</label>
+        <input
+          type="time"
+          id="sleepEndTime"
+          value={sleepEndTime}
+          onChange={(e) => setSleepEndTime(e.target.value)}
+        />
         <button onClick={addTask}>
           {editingIndex !== null ? 'Save' : 'Add'}
         </button>
@@ -199,7 +209,7 @@ const formatDateTime2 = (dateString) => {
           <li key={dateIndex}>
             <h2>{formatDateTime2(dueDate, { year: 'numeric', month: 'long', day: 'numeric' })}</h2>
             <ul>
-              {sortedTasks
+              {filteredTasks
                 .filter(task => getDateWithoutTime(task.dueDate) === dueDate)
                 .map((task, index) => {
                   const originalIndex = tasks.findIndex(t => t.text === task.text);
@@ -238,4 +248,5 @@ const formatDateTime2 = (dateString) => {
 }
 
 export default App;
+
 
